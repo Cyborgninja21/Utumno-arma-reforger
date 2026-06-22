@@ -1,3 +1,13 @@
+> **⚠️ Private homelab fork.** This is `Cyborgninja21/arma-reforger-container-image`, a
+> private mirror of [`RouHim/arma-reforger-container-image`](https://github.com/RouHim/arma-reforger-container-image)
+> (all credit to RouHim — upstream ships no license). Differences from upstream:
+> the CI pipeline publishes to the **private** registry
+> `ghcr.io/cyborgninja21/arma-reforger-server` (Komodo pulls it via the shared
+> `Cyborgninja21` account) instead of Docker Hub, and an `upstream-sync` workflow
+> fast-forwards the pristine `vendor` branch from upstream daily and opens a
+> `vendor → main` review PR. Local customizations live on `main`; never commit
+> them to `vendor`. Deployed as the `bifrost-arma-reforger-primary` Komodo stack.
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/RouHim/arma-reforger-container-image/main/.github/readme/logo.png" width="250">
 </p>
