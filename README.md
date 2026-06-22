@@ -1,7 +1,9 @@
 > **⚠️ Private homelab fork.** This is `Cyborgninja21/arma-reforger-container-image`, a
 > private mirror of [`RouHim/arma-reforger-container-image`](https://github.com/RouHim/arma-reforger-container-image)
-> (all credit to RouHim — upstream ships no license). Differences from upstream:
-> the CI pipeline publishes to the **private** registry
+> (all credit to RouHim — upstream ships no license). The point of the fork is
+> **supply-chain control** (our own CI + Trivy gates + Renovate), not secrecy —
+> the image carries no secrets, so like the Conan/Palworld images it stays public.
+> Differences from upstream: the CI pipeline publishes to
 > `ghcr.io/cyborgninja21/arma-reforger-server` (Komodo pulls it via the shared
 > `Cyborgninja21` account) instead of Docker Hub, and an `upstream-sync` workflow
 > fast-forwards the pristine `vendor` branch from upstream daily and opens a
