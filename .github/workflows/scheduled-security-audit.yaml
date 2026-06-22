@@ -1,32 +1,45 @@
 name: Security Audits
+# Fork customization (Cyborgninja21 homelab): audits the PRIVATE GHCR image
+# instead of the upstream Docker Hub image, so a ghcr login is required for the
+# image-audit job to pull it.
 on:
   schedule:
     - cron: '0 0 * * *'  # every day at midnight
   workflow_dispatch: # allow manual execution
 
 env:
-  IMAGE_NAME: rouhim/arma-reforger-server
+  REGISTRY: ghcr.io
+  IMAGE_NAME: cyborgninja21/arma-reforger-server
   IMAGE_TAG: latest
 
 jobs:
   image-audit:
     name: Audit container image
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Print to console
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
           format: 'table'
           exit-code: '0'
 
       - name: Fail if vulnerabilities found
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'docker.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
+          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true

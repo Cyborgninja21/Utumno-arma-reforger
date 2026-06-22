@@ -1,0 +1,69 @@
+name: upstream-sync
+# Keeps the pristine `vendor` branch fast-forwarded to
+# RouHim/arma-reforger-container-image@main and opens a vendor -> main PR so
+# upstream changes land through review (local GHCR/fork customizations live on
+# `main`).
+#
+# Methodology: "Upstream-Tracking Method for Private Repo Mirrors (Template)"
+#   https://outline.epikos-kyklos.com/doc/upstream-tracking-method-for-private-repo-mirrors-template-DlhYxxASR4
+#
+# Requires (one-time, repo Settings -> Actions -> General -> Workflow permissions):
+#   * Read and write permissions
+#   * Allow GitHub Actions to create and approve pull requests
+#
+# IMPORTANT — why a deploy key (not the built-in GITHUB_TOKEN):
+# Upstream (RouHim/arma-reforger-container-image) ships its own
+# `.github/workflows/*` files. The built-in GITHUB_TOKEN is a GitHub App token
+# and is *categorically forbidden* from pushing any ref that creates/updates
+# workflow files (there is no grantable `workflows:` permission). Mirroring those
+# commits therefore fails with "refusing to allow a GitHub App to create or
+# update workflow ...". A write-enabled DEPLOY KEY is not subject to that
+# restriction, so the push steps below run over SSH using
+# `secrets.UPSTREAM_SYNC_SSH_KEY` (scoped to this repo only). The GITHUB_TOKEN is
+# still used for `gh pr create`.
+on:
+  schedule:
+    - cron: '17 6 * * *'      # daily 06:17 UTC
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Write deploy key — required to push upstream's workflow files
+          # (GITHUB_TOKEN cannot). Configures `origin` over SSH.
+          ssh-key: ${{ secrets.UPSTREAM_SYNC_SSH_KEY }}
+      - name: Fast-forward pristine `vendor` from upstream
+        run: |
+          set -euo pipefail
+          git config user.name  "upstream-sync[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/RouHim/arma-reforger-container-image.git
+          git fetch upstream --tags
+          git checkout vendor
+          git merge --ff-only upstream/main
+          git push origin vendor --tags
+      - name: Open (or update) vendor -> main PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git fetch origin main vendor
+          # Only act when `vendor` carries commits `main` doesn't (upstream
+          # actually advanced). main being ahead of vendor (local changes)
+          # is normal and must NOT trigger a sync PR.
+          ahead=$(git rev-list --count origin/main..origin/vendor)
+          if [ "$ahead" -eq 0 ]; then
+            echo "vendor has no commits ahead of main — nothing to sync."; exit 0
+          fi
+          echo "vendor is $ahead commit(s) ahead of main — opening sync PR."
+          git push -f origin origin/vendor:refs/heads/sync/upstream
+          gh pr create -B main -H sync/upstream \
+            --title "Upstream sync $(date +%F)" \
+            --body "Automated fast-forward of \`vendor\` from RouHim/arma-reforger-container-image@main ($ahead new commit(s)). Review for conflicts with local changes, then merge." \
+            2>/dev/null || echo "PR already open for sync/upstream"
